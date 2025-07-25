@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres        # Username for your postgres datbase
+      - POSTGRES_PASSWORD=Dr5Hyv_678    # Password for your postgres user
+    ports:
+      - '5432:5432'
+    volumes: 
+      - db:/var/lib/postgresql/data
+volumes:
+  db:
+    driver: local
