@@ -4,9 +4,9 @@ services:
     restart: always
     environment:
       - POSTGRES_USER=postgres        # Username for your postgres database
-      - POSTGRES_PASSWORD=postgres  # Password for your postgres user
+      - POSTGRES_PASSWORD=postgres    # Password for your postgres user / change it
     ports:
-      - '5433:5432'
+      - '5432:5432'
     volumes:
       - /data/docker/data:/var/lib/postgresql/data
 
