@@ -3,8 +3,8 @@ services:
     image: postgres:latest
     restart: always
     environment:
-      - POSTGRES_USER=postgres        # Username for your postgres datbase
-      - POSTGRES_PASSWORD=Dr5Hyv_678  # Password for your postgres user
+      - POSTGRES_USER=postgres        # Username for your postgres database
+      - POSTGRES_PASSWORD=postgres  # Password for your postgres user
     ports:
       - '5433:5432'
     volumes:
