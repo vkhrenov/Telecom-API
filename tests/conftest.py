@@ -20,7 +20,7 @@ def transport():
 @pytest_asyncio.fixture(scope="function")
 async def get_auth_headers(transport):
     async with AsyncClient(transport=transport, base_url=BASE_URL) as client:
-        login_data = {"login": "test", "password": "test2025"}
+        login_data = {"login": "test", "password": "test"}
         response = await client.post("/auth/login", json=login_data)
         assert response.status_code == 200
         token = response.json()["access_token"]
