@@ -1,0 +1,90 @@
+Suggested .gitignore
+
+venv
+/__pycache__
+.env
+routeapi.log
+
+
+Suggested .gitlab-ci.yml
+
+# routeAPI testing Dev/main branches
+stages:
+  - build
+  - test
+  - deploy
+
+build-job-dev:
+  stage: build
+  tags:
+    - dev
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  script:
+    - echo "DATABASE__HOSTNAME=$DATABASE__HOSTNAME_DEV" >> .env
+    - echo "DATABASE__USERNAME=$DATABASE__USERNAME" >> .env
+    - echo "DATABASE__PASSWORD=$DATABASE__PASSWORD_DEV" >> .env
+    - echo "DATABASE__PORT=$DATABASE__PORT_DEV" >> .env
+    - echo "DATABASE__DB=$DATABASE__DB" >> .env
+    - echo "SECURITY__JWT_SECRET_KEY=$SECURITY__JWT_SECRET_KEY_DEV" >> .env
+    - echo "SECURITY__JWT_COOKIE_SECURE=$SECURITY__JWT_COOKIE_SECURE" >> .env
+    - echo "SECURITY__JWT_ACCESS_TOKEN_EXPIRE_SECS=$SECURITY__JWT_ACCESS_TOKEN_EXPIRE_SECS" >> .env
+    - echo "SECURITY__JWT_REFRESH_TOKEN_EXPIRE_SECS=$SECURITY__JWT_REFRESH_TOKEN_EXPIRE_SECS" >> .env
+    - docker build -t routeapi-image .
+
+build-job-main:
+  stage: build
+  tags:
+    - main
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - echo "DATABASE__HOSTNAME=$DATABASE__HOSTNAME_UT" >> .env
+    - echo "DATABASE__USERNAME=$DATABASE__USERNAME" >> .env
+    - echo "DATABASE__PASSWORD=$DATABASE__PASSWORD_UT" >> .env
+    - echo "DATABASE__PORT=$DATABASE__PORT_UT" >> .env
+    - echo "DATABASE__DB=$DATABASE__DB" >> .env
+    - echo "SECURITY__JWT_SECRET_KEY=$SECURITY__JWT_SECRET_KEY" >> .env
+    - echo "SECURITY__JWT_COOKIE_SECURE=$SECURITY__JWT_COOKIE_SECURE" >> .env
+    - echo "SECURITY__JWT_ACCESS_TOKEN_EXPIRE_SECS=$SECURITY__JWT_ACCESS_TOKEN_EXPIRE_SECS" >> .env
+    - echo "SECURITY__JWT_REFRESH_TOKEN_EXPIRE_SECS=$SECURITY__JWT_REFRESH_TOKEN_EXPIRE_SECS" >> .env
+    - docker build -t routeapi-image .
+
+test-job-dev:
+  stage: test
+  tags:
+    - dev
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  script:
+    - docker run --rm routeapi-image pytest -s -v
+
+test-job-main:
+  stage: test
+  tags:
+    - main
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - docker run --rm routeapi-image pytest -s -v
+
+deploy-job-dev:
+  stage: deploy
+  tags:
+    - dev
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+  script:
+    - echo "Deploying routeAPI application (dev)..."
+    - docker compose up -d
+
+deploy-job-main:
+  stage: deploy
+  tags:
+    - main
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - echo "Deploying routeAPI application (main)..."
+    - docker compose up -d
+    
