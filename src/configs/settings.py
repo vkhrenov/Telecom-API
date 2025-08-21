@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     database: Database = Field(default_factory=Database)
     log_level: str = "INFO"
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field 
     @property
     def sqlalchemy_database_uri(self) -> URL:
  
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
             port=self.database.port,
             database=self.database.db,
         )
-
+    
     model_config = SettingsConfigDict(
         env_file=f"{PROJECT_DIR}/.env",
         case_sensitive=False,

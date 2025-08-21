@@ -2,7 +2,7 @@ from pydantic import BaseModel, field_validator, Field
 from typing import Optional, Literal
 import re
 
-# Schema for validating type parameter
+# Schema for validating type parameter ------------------------------------------------
 class TypeParamsSchema(BaseModel):
     type: Optional[Literal['json', 'raw', 'xml']] = Field(
         default='json',
@@ -15,7 +15,7 @@ class TypeParamsSchema(BaseModel):
             raise ValueError("Type must be one of: 'json', 'raw', or 'xml'.")
         return v
 
-# Schema for validating phone numbers and dial codes
+# Schema for validating phone numbers and dial codes -----------------------------------
 class DialCode_TypeParamsSchema(TypeParamsSchema):
     dial_code: str = Field(...,description="Dial code in 6-10 digit format. 1 or +1 prefix is allowed")
 
@@ -28,7 +28,7 @@ class DialCode_TypeParamsSchema(TypeParamsSchema):
             raise ValueError("Dial code must be in 6-10 digit format. 1 or +1 prefix is allowed.")
         return v
     
-# Schema for validating phone codes    
+# Schema for validating phone codes ----------------------------------------------------   
 class PhoneCodes_TypeParamsSchema(DialCode_TypeParamsSchema):
     dialing_code: str = Field(
         ..., 
@@ -42,7 +42,7 @@ class PhoneCodes_TypeParamsSchema(DialCode_TypeParamsSchema):
             raise ValueError("Dialing code must be in 6-10 digit format. 1 or +1 prefix is allowed.")
         return v
 
-# Schema for validating a phone number with type parameters
+# Schema for validating a phone number with type parameters -------------------------------
 class PhoneNumber_TypeParamsSchema(TypeParamsSchema):
     tn: str = Field(...,description="Telephone Number in E.164 format, 10-digit number, or 1 followed by a 10-digit number")
 
@@ -55,7 +55,7 @@ class PhoneNumber_TypeParamsSchema(TypeParamsSchema):
             raise ValueError("Telephone number must be in E.164 format (e.g. +12345678900),a 10-digit number, or a 1 followed by a 10-digit number")
         return v
 
-# Schema for validating multiple phone numbers
+# Schema for validating multiple phone numbers ---------------------------------------------
 class PhoneNumbers_TypeParamsSchema(PhoneNumber_TypeParamsSchema):
     cn: str = Field(...,description="Calling Number in E.164 format, 10-digit number, or 1 followed by a 10-digit number")
 
@@ -68,7 +68,7 @@ class PhoneNumbers_TypeParamsSchema(PhoneNumber_TypeParamsSchema):
             raise ValueError("Calling number must be in E.164 format (e.g. +12345678900),a 10-digit number, or a 1 followed by a 10-digit number.")
         return v
 
-# Schema for Local Routing Number (LRN) information
+# Schema for Local Routing Number (LRN) information -----------------------------------------
 class LRNInfoSchema(BaseModel):
     tn: str
     lrn: str
@@ -85,7 +85,7 @@ class LRNInfoSchema(BaseModel):
     mmsuri: str
     smsuri: str
 
-# Schema for Full Data information
+# Schema for Full Data information ----------------------------------------------------------
 class FullDataSchema(BaseModel):
     tn: str
     lrn: str
@@ -95,10 +95,28 @@ class FullDataSchema(BaseModel):
     category: str
     spid_name: str
     
-# Schema for Full Data information with CoSpec 
+# Schema for Full Data information with CoSpec ----------------------------------------------
 class FullDataCoSpecSchema(FullDataSchema):
     co_spec_name: str
     co_spec_name_or_ocn_name: str
+    ported_date: str
     simplified_name: str
+    osimplified_name: str
 
-
+# Schema for NNMP information --------------------------------------------------------------
+class NNMPInfoSchema(BaseModel):
+    nnmp: int
+    ocn: str
+    ocn_name: str
+    category: str
+    
+# Schema for Local Routing Number (LRN) with jurisdiction -----------------------------------
+class LRNwithJurisdictionSchema(BaseModel):
+   lrn: str
+   ocn: str
+   lata: str
+   jurisdiction: str
+   state: str
+   rc: str
+   lec: str
+   lecType: str

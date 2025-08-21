@@ -14,6 +14,7 @@ RUN mkdir -p /app/tmp
 ENV PROMETHEUS_MULTIPROC_DIR=/app/tmp
 ENV PG_TIMEZONE="America/New_York"
 ENV REDIS_URL="redis://redis:6379"
+ENV BILLING_LOGGER_INTERVAL=180
 
 COPY . .
 

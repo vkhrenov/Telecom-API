@@ -1,0 +1,25 @@
+services:
+  nginx:
+    image: nginx:latest
+    restart: unless-stopped
+    container_name: nginx
+    network_mode: host
+    networks:
+      nginxnet:
+        ipv4_address: 172.18.0.2
+    ports:
+      - target: 8880
+        published: 8880
+        protocol: tcp
+        mode: host
+
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ../nginx/certs:/etc/nginx/certs
+networks:
+  nginxnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
+        

@@ -58,7 +58,7 @@ REQUESTS_IN_PROGRESS = Gauge(
     "Gauge of requests by method and path currently being processed",
     ["method", "path", "app_name"], multiprocess_mode='livesum'
 )
-
+# Middleware for Prometheus metrics collection ---------------------------------------------------
 class PrometheusMiddleware(BaseHTTPMiddleware):
     def __init__(self, app: ASGIApp, app_name: str = "fastapi-app") -> None:
         super().__init__(app)
@@ -155,9 +155,9 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
         return request.url.path, False
 
-import logging
-
+# Endpoint for Prometheus metrics ---------------------------------------------------------------
 def metrics(request: Request) -> Response:
+    
     ip_address = getIPAddress(request)
     if not ip_address.startswith(ALLOWED_NETWORK_PREFIXES):
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -177,7 +177,7 @@ def metrics(request: Request) -> Response:
 
     return Response(generate_latest(registry), headers={"Content-Type": CONTENT_TYPE_LATEST})
 
-
+# Function to set up OpenTelemetry for FastAPI -----------------------------------------------------
 def setting_otlp(app: ASGIApp, app_name: str, endpoint: str, log_correlation: bool = True) -> None:
 
     if log_correlation:

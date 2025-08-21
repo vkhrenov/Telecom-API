@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+#
+# This script checks if watchDogd is running and starts it if not
+#
+use strict;
+#---------
+my $i;
+my $date;
+my $Str;
+my $dim;
+
+my $workDir="/builds/vkhrenov-group/routeAPI/shell_scripts";
+#------------------------------------------------------------------------
+   $i=0;
+   foreach $_ (`ps xa | grep watchDogd | grep perl | grep -v grep`) {
+      $i++;
+   }
+   unless ($i) {
+      $dim=system("$workDir/watchDogd");
+   }

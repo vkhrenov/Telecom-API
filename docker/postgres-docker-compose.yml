@@ -1,10 +1,15 @@
 services:
   postgres:
     image: postgres:latest
+    container_name: postgres
+    networks:
+      postgresnet:
+        ipv4_address: 172.19.0.2
     restart: always
     environment:
-      - POSTGRES_USER=postgres        # Username for your postgres database
-      - POSTGRES_PASSWORD=postgres    # Password for your postgres user / change it
+      - POSTGRES_USER=postgres          # Username for your postgres database
+      - POSTGRES_PASSWORD=postgresql    # Password for your postgres user
+      - TZ=America/New_York
     ports:
       - '5432:5432'
     volumes: 
@@ -12,3 +17,12 @@ services:
 volumes:
   db:
     driver: local
+networks:
+  postgresnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+
+
+          

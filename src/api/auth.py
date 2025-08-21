@@ -10,7 +10,6 @@ from fastapi.security.utils import get_authorization_scheme_param
 from src.utils.logger import access_logger, getIPAddress
 from src.databases.database_session import get_async_session
 
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()

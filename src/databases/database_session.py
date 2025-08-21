@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import (
 from src.configs.settings import get_settings
 from typing import AsyncGenerator
 
-def new_async_engine(uri: URL) -> AsyncEngine:
+def numbering_async_engine(uri: URL) -> AsyncEngine:
     return create_async_engine(
         uri,
         pool_pre_ping=True,
@@ -19,9 +19,12 @@ def new_async_engine(uri: URL) -> AsyncEngine:
         pool_recycle=600
     )
 
-_ASYNC_ENGINE = new_async_engine(get_settings().sqlalchemy_database_uri)
-_ASYNC_SESSIONMAKER = async_sessionmaker(_ASYNC_ENGINE, expire_on_commit=False)
+_NUMBERING_ASYNC_ENGINE = numbering_async_engine(get_settings().sqlalchemy_database_uri)
+_NUMBERING_ASYNC_SESSIONMAKER = async_sessionmaker(_NUMBERING_ASYNC_ENGINE, expire_on_commit=False)
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
-    async with _ASYNC_SESSIONMAKER() as session:
+    async with _NUMBERING_ASYNC_SESSIONMAKER() as session:
         yield session
+
+
+

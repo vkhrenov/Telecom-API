@@ -6,9 +6,9 @@ from src.version import built_v1
 from src.schemas.numbering_v1 import TypeParamsSchema
 from typing import Annotated
 
-
 main_router = APIRouter()
 
+# Route API version 
 @main_router.get("/", summary="Route API")
 async def root(param: Annotated[TypeParamsSchema, Query()]):
     # Return a built version
@@ -19,6 +19,11 @@ async def root(param: Annotated[TypeParamsSchema, Query()]):
         return {"built v1": built_v1}
     elif param.type == 'xml':
         return Response(content=f"<built_v1>{built_v1}</built_v1>", media_type="application/xml")
+
+# Health check endpoint
+@main_router.get("/health")
+async def health_check():
+    return {"status": "healthy"}    
 
 main_router.include_router(numbering_router_v1, prefix="/v1", tags=["Numbering"])
 main_router.include_router(auth_router, prefix="/auth", tags=["Auth"])

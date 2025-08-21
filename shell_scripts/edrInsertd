@@ -1,0 +1,164 @@
+#!/usr/bin/perl
+#
+# This script is for inserting EDR (Event Detail Records) into the database 
+#
+use strict;
+use DBI;
+use POSIX;
+
+my $edrDir="/export/logs/routeapi";
+my $badDir="/export/logs.bad";
+my $arcDir="/export/logs.arc";
+my $logFile="/export/logs/edrInsertd.log";
+
+my $maxSes=3;
+
+my $date;
+my $pid = fork;
+my $ppid;
+my $file;
+my $query;
+my $sth;
+my $rcerr;
+my $rcStrErr;
+my @row;
+my $Str;
+my $utime;
+my $stt;
+my $row;
+my $badFile;
+my $insertQ;
+my $updateQ;
+my $ddrTable;
+my ($eventDateTime,$ip,$uid,$ep,$retValue,$dn,$tn,$eventid,$eventDate);
+my $callid;
+my $count=0;
+
+exit if $pid;
+die "Couldn't fork: $!" unless defined ($pid);
+POSIX::setsid() or
+    die "Can't start a new session: $!";
+
+my $time_to_die=0;
+my $i=0;
+my $edrdb="dbi:Pg:dbname=EndpointLogs;host=localhost;port=5433";
+my $insert;
+my @sarr;
+my $summ;
+#------------------------------------------------------------------------
+my $edrconn = DBI->connect($edrdb,"qlrn","") or
+                die "Cannot connect to $edrdb: $!" ;
+#------------------------------------------------------------------------
+sub signal_handler {
+   $time_to_die = 1;
+   $edrconn->disconnect;
+}
+#------------------------------------------------------------------------
+until ($time_to_die) {
+   $date=`date "+%m/%d/%Y %H:%M:%S"`;
+   chomp($date);
+   $ppid=$$;
+
+   $i=0;
+   foreach $_ (`ps xaw | grep edrInsertd | grep perl | grep -v grep`) {
+      $i++;
+   }
+   exit if $i>$maxSes;
+
+   foreach $file (`ls $edrDir`) {
+      chomp($file);
+      next if $file=~/^\./;
+      next unless $file=~/.log/;
+
+      $query = "SELECT * FROM endpoint_logs_proc ".
+               "WHERE logfile=\'$file\'";
+
+      $sth = $edrconn->prepare($query) or $rcerr=$edrconn->errstr();
+      $sth->execute or $rcStrErr=$sth->errstr();
+      chomp($rcStrErr);
+      $rcStrErr=$rcerr if $rcStrErr eq '' and $rcerr ne '';
+      if ($rcStrErr) {
+         logErr("$date EDRINPROC Error: $rcStrErr");
+         exit;
+      } 
+      @row = $sth->fetchrow_array;
+
+      $insert=0;
+      unless (@row) {
+        $utime=`date "+%s"`;
+        chomp($utime);
+        $query="INSERT INTO endpoint_logs_proc (logfile) ".
+               "VALUES (\'$file\')";
+        $row=$edrconn->do($query);
+        if (($row) && ($row ne '0E0')) {
+            $badFile=0;
+            $insert=1;
+            $stt=open(EDR,"$edrDir/$file");
+            $count=0;
+            if ($stt) {
+               $Str=<EDR>;
+               while ($Str) {
+                  chomp($Str);
+                  ($eventDateTime,$ip,$uid,$ep,$retValue,$dn,$tn,$eventid)=split(/\t/,$Str);
+                   $eventDateTime=~s/INFO BILL//;
+                   $eventDateTime=(split(/\,/,$eventDateTime))[0];
+                   $eventDate=(split(/ /,$eventDateTime))[0];
+                   # Escape single quotes in $retvalue to prevent SQL errors
+		   $retValue=~s/^return=\[//;
+		   $retValue=~s/\]$//;
+                   $retValue =~ s/'/''/g;
+		   $ip=~s/^IP=//;
+		   $uid=~s/^ID=//;
+	           $ep=~s/^EP=//;
+
+                   $insertQ = "INSERT into endpoint_logs (event_timestamp, eventid, uid, ip_address, endpoint, ret_value, dn, tn, event_date) VALUES ".
+                              "(\'$eventDateTime\',\'$eventid\',\'$uid\',\'$ip\',\'$ep\',\'$retValue\',\'$dn\',\'$tn\',\'$eventDate\')";
+                   $row=$edrconn->do($insertQ);
+                   unless (($row) && ($row ne '0E0')) {
+                      $updateQ="UPDATE endpoint_logs SET ".
+                               "event_timestamp=\'$eventDateTime\', eventid=\'$eventid\', uid=\'$uid\', ip_address=\'$ip\',".
+                               "endpoint=\'$ep\', ret_value=\'$retValue\', event_date=\'$eventDate\', dn=\'$dn\', tn=\'$tn\' ".
+                               "WHERE eventid=\'$eventid\'";
+                      $row=$edrconn->do($updateQ);
+                      unless (($row) && ($row ne '0E0'))  {
+                         logErr("$date $file: Record insert ".
+                                "failure:".$edrconn->errstr()." [$insertQ][$updateQ]");
+                         $badFile=1;
+                      } # unless row
+                   } # unless row
+                   $Str=<EDR>;
+                   $count++;
+               } # while Str
+            } # if stt
+            close(EDR);
+
+            if ($insert) {
+               if ($badFile) {
+                   `mv $edrDir/$file $badDir 2>>$logFile`;
+                    logErr("$date BAD FILE: $file . Action: mv $edrDir/$file $badDir\n");
+               } else {
+                    system("gzip $edrDir/$file;mv $edrDir/$file.gz $arcDir");
+               } 
+
+               $query="DELETE FROM endpoint_logs_proc ".
+                      "WHERE logfile=\'$file\'";
+                       $row=$edrconn->do($query);
+                       unless (($row) && ($row ne '0E0')) {
+                          logErr("$date EDRINPROC Error: $query");
+                       }
+            } # if insert
+       } # row
+    } # unless
+   } # foreach
+
+   sleep 5;
+}
+
+   $edrconn->disconnect;
+
+sub logErr {
+ open (LOG,">>$logFile");
+ print LOG $_[0]."\n";
+ close(LOG);
+}
+

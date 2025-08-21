@@ -1,0 +1,49 @@
+#!/bin/perl
+#
+# This script creates a partitioned table for endpoint logs in PostgreSQL
+#
+use strict;
+use DBI;
+use POSIX qw(strftime);
+
+my $workDir='/builds/vkhrenov-group/routeAPI';
+my $password="Dcrt7n5Ho5Fdc5YnU";
+my $fromdate=$ARGV[0];
+my $todate=$ARGV[1];
+my $date;
+my $edrdb="dbi:Pg:dbname=EndpointLogs;host=localhost";
+my $password=""; 
+
+$fromdate=strftime('%Y-%m-%d', localtime(time + 86400)) unless ($fromdate);
+$todate=strftime('%Y-%m-%d', localtime(time + 86400 *2)) unless ($todate);
+$date=$fromdate;
+$date=~s/\-//g;
+
+chomp($fromdate);
+chomp($todate);
+
+print "[$fromdate][$todate][$date]\n";
+
+my $partition_name = "endpoint_logs_$date";
+my $create_sql = qq{
+   CREATE TABLE public.$partition_name PARTITION OF public.endpoint_logs
+       FOR VALUES FROM ('$fromdate') TO ('$todate')
+   TABLESPACE pg_default;
+
+   ALTER TABLE IF EXISTS public.$partition_name
+       OWNER to qlrn;
+   };
+
+#------------------------------------------------------------------------
+my $dbh = DBI->connect(
+    $edrdb,
+    'qlrn', $password,
+    { RaiseError => 1, AutoCommit => 1 }
+) or die $DBI::errstr;
+
+# Execute the SQL
+$dbh->do($create_sql);
+
+print "Partition table $partition_name created successfully.\n";
+
+$dbh->disconnect;

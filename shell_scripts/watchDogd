@@ -1,0 +1,66 @@
+#!/usr/bin/perl
+# 
+# This script checks if daemons are running and starts it if not.
+#
+use strict;
+use POSIX;
+
+my $i=0;
+my $maxEDRInserters=3;
+my $workDir="/builds/vkhrenov-group/routeAPI/shell_scripts";
+my $logDir="/export/logs/routeapi";
+
+my $date;
+my $dim;
+my $filePath;
+my $mtime;
+my $current_time;
+my $newFile;
+#------------------------------------------------------------------------
+foreach $_ (`ps xa | grep watchDogd | grep perl | grep -v grep`) {
+  $i++;
+}
+
+if ($i>1) {
+  print "Already running.....\n";
+  exit
+}
+#------------------------------------------------------------------------
+my $pid = fork;
+exit if $pid;
+die "Couldn't fork: $!" unless defined ($pid);
+POSIX::setsid() or
+    die "Can't start a new session: $!";
+
+my $time_to_die=0;
+
+sub signal_handler {
+   $time_to_die = 1;
+}
+#------------------------------------------------------------------------
+until ($time_to_die) {
+  # Check if edrInsertd is running
+  $i=0;	
+  foreach $_ (`ps xaw | grep edrInsertd | grep perl | grep -v grep`) {
+    $i++;
+  }
+  if ($i<$maxEDRInserters) {
+     $dim=system("$workDir/edrInsertd");
+  }
+  
+  # check if logDir has stuck files
+  foreach my $file (`ls -a $logDir`) { 
+    chomp($file);
+    if (($file =~ /$\./) && ($file =~ /log$/)) {
+      $filePath = "$logDir/$file";
+      $mtime = (stat($filePath))[9];
+      $current_time = time;
+      if ($current_time - $mtime > 3600) { # if file is older than 1 hour
+         $newFile = $file;
+         $newFile =~ s/\.//;
+         rename $filePath, "$logDir/$newFile"; 
+      }  
+    }
+  }
+  sleep 30;
+} 

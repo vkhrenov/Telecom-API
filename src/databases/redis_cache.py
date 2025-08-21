@@ -1,31 +1,25 @@
 import os
 import asyncio
-
-from fastapi import Request, Response
-from fastapi_redis_cache import FastApiRedisCache
-from sqlalchemy import text
-from sqlalchemy.orm import Session
 import redis.asyncio as aioredis
-from src.databases.database_session import _ASYNC_SESSIONMAKER
 
-LOCAL_REDIS_URL = "redis://127.0.0.1:6379"
+from typing import Optional
+from sqlalchemy import text
+from src.databases.database_session import _NUMBERING_ASYNC_SESSIONMAKER
+
+
+LOCAL_REDIS_URL = "redis://redis:6379"
 redis_client = None
 
+# Function to initialize Redis and set up periodic sync with Postgres ---------------------------------------
 def redis_startup():
     global redis_client 
-    redis_cache = FastApiRedisCache()
-    redis_cache.init(
-        host_url=os.environ.get("REDIS_URL", LOCAL_REDIS_URL),
-        prefix="routeapi-cache",
-        response_header="X-RouteAPI-Cache",
-        ignore_arg_types=[Request, Response, Session]
-    )
-   
-  #  redis_client = redis_cache.redis
+
+    # Set up periodic sync with Postgres
     redis_url = os.environ.get("REDIS_URL", LOCAL_REDIS_URL)
-    redis_client = aioredis.from_url(redis_url)
+    redis_client = aioredis.from_url(redis_url, encoding="utf-8", decode_responses=True)
     asyncio.create_task(sync_redis_to_postgres(redis_client))
 
+# Async function to sync Redis data to Postgres -------------------------------------------------------------
 async def sync_redis_to_postgres(redis_client):
     while True:
         await asyncio.sleep(60) # Every minute
@@ -44,7 +38,7 @@ async def sync_redis_to_postgres(redis_client):
                     if not data:
                         continue
 
-                    async with _ASYNC_SESSIONMAKER() as session:
+                    async with _NUMBERING_ASYNC_SESSIONMAKER() as session:
                         for endpointid, count in data.items():
                             count = int(count)
                             if count > 0:
@@ -60,3 +54,12 @@ async def sync_redis_to_postgres(redis_client):
    
             finally:
                 await redis_client.delete(global_lock_key)
+
+# Async function to get a value from Redis cache ---------------------------------------------------
+async def get_cache(key: str) -> Optional[str]:
+    return await redis_client.get(key)
+
+# Async function to set a value in Redis cache with expiration -------------------------------------
+async def set_cache(key: str, value: str, expire: int = 600):
+    await redis_client.set(key, value, ex=expire)
+          

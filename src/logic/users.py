@@ -5,7 +5,6 @@ from src.schemas.auth.users import UserEndpointSchema
 from src.schemas.stats import DateRange
 from datetime import datetime
 
-
 # Function to check if the user has access to an endpoint -------------------------------------------------------------
 async def check_user_access(
     userid: int, 

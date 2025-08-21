@@ -3,7 +3,7 @@ from sqlalchemy import Column, String
 
 Base = declarative_base()
 
-# LERG6 Table Model
+# LERG6 Table Model ----------------------------------------------------
 class Lerg6Model(Base):
     __tablename__ = "lerg6"
 
@@ -24,18 +24,18 @@ class Lerg6Model(Base):
     lataname: Mapped[str]
     locality: Mapped[str]
 
-# Local Table Model
+# Local Table Model ---------------------------------------------------
 class LocalModel(Base):    
     __tablename__ = "local"
 
-    from_rc_abbrev: Mapped[str] = mapped_column(primary_key=True)
-    from_state: Mapped[str] = mapped_column(primary_key=True)
-    from_lata: Mapped[str] = mapped_column(primary_key=True)
-    to_rc_abbrev: Mapped[str] = mapped_column(primary_key=True)
-    to_state: Mapped[str] = mapped_column(primary_key=True)
-    to_lata: Mapped[str] = mapped_column(primary_key=True)
+    from_rc_abbrev: Mapped[str] = mapped_column(primary_key=True, index=True)
+    from_state: Mapped[str] = mapped_column(primary_key=True, index=True)
+    from_lata: Mapped[str] = mapped_column(primary_key=True, index=True)
+    to_rc_abbrev: Mapped[str] = mapped_column(primary_key=True, index=True)
+    to_state: Mapped[str] = mapped_column(primary_key=True, index=True)
+    to_lata: Mapped[str] = mapped_column(primary_key=True, index=True)
 
-# Numberpoolblock Table Model
+# Numberpoolblock Table Model ------------------------------------------
 class Numberpoolblock(Base):
     __tablename__ = "numberpoolblock"
 
@@ -68,7 +68,7 @@ class Numberpoolblock(Base):
     mmsuri: Mapped[str]
     smsuri: Mapped[str]
 
-# TN2LRNXXX Table Dynamic Model
+# TN2LRNXXX Table Dynamic Model -------------------------------------
 _dynamic_model_cache = {}
 def create_dynamic_model(table_name: str):
     if table_name in _dynamic_model_cache:
@@ -110,16 +110,23 @@ def create_dynamic_model(table_name: str):
     _dynamic_model_cache[table_name] = model  
     return model
 
-# SPIDNames Table Model
+# SPIDNames Table Model -----------------------------------
 class SPIDNamesModel(Base):
     __tablename__ = "spidnames"
 
     spid: Mapped[str] = mapped_column(primary_key=True, index=True)
     spidname: Mapped[str]
 
-# SimpleCarrierNames Table Model
+# SimpleCarrierNames Table Model ---------------------------
 class SimpleCarrierNamesModel(Base):
     __tablename__ = "simple_carrier_names"
 
     co_spec_name: Mapped[str] = mapped_column(primary_key=True, index=True)
     simplified_name: Mapped[str]
+
+# NNMP Table Model ------------------------------------------
+class NNMPModel(Base):
+    __tablename__ = "nnmp"
+
+    co_spec_name: Mapped[str] = mapped_column(primary_key=True, index=True)
+    nnmp: Mapped[int]

@@ -9,17 +9,10 @@ from src.utils.logger import getIPAddress
 from src.databases.database_session import get_async_session
 import  src.databases.redis_cache
 
-
 import logging
 
 logger = logging.getLogger(__name__)
 
-#async def get_session() -> AsyncGenerator[AsyncSession]:
-#   async with database_session.get_async_session() as session:
-#        yield session
-#        # Ensure the session is closed after use
-#        await session.close()
-        
 # Function to require user endpoint access -------------------------------------------------------------------------
 def require_endpoint_access():
     async def inner_require_endpoint_access(payload: TokenPayload = Depends(security.access_token_required),

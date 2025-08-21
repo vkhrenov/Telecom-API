@@ -7,12 +7,10 @@ import multiprocessing
 import logging
 import os
 import shutil
-import uvicorn
 
 from fastapi import FastAPI, Request
-from src.api import built_v1 as built
+from src.api import main_router, built_v1 as built
 
-from src.api import main_router
 from src.utils.observability import PrometheusMiddleware, metrics
 from gunicorn.app.base import BaseApplication
 from prometheus_client import multiprocess
@@ -20,6 +18,7 @@ from contextlib import asynccontextmanager
 from src.databases.redis_cache import redis_startup
 from fastapi import HTTPException
 from authx.exceptions import AuthXException
+from src.utils.logger import billing_logger
 
 def number_of_workers():
     return multiprocessing.cpu_count()*2 
@@ -50,7 +49,8 @@ class StandaloneApplication(BaseApplication):
 async def lifespan(app: FastAPI):
  
     redis_startup() 
-   
+    billing_logger.rotate_handler_periodically()
+
     pmd = os.environ["PROMETHEUS_MULTIPROC_DIR"]
     if os.path.isdir(pmd):
         for filename in os.listdir(pmd):
@@ -97,10 +97,5 @@ if __name__ == "__main__":
     }
     StandaloneApplication(app, options).run()
 
-    #import sys
-    # Use 1 worker for tests or local dev
-    #if "pytest" in sys.modules:
-    #    uvicorn.run("main:app", host="0.0.0.0", port=int(EXPOSE_PORT), workers=1)
-    #else:
-    #    uvicorn.run("main:app", host="0.0.0.0", port=int(EXPOSE_PORT), workers=WORKERS)
+
 

@@ -2,7 +2,7 @@
 from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
-# Schema for validating date range input
+# Schema for validating date range input ---------------------------------------------
 class DateRange(BaseModel):
     start_date: str = Field(..., description="Start date in YYYY-MM-DD HH:MM:SS format")
     end_date: str = Field(..., description="End date in YYYY-MM-DD HH:MM:SS format")
@@ -23,7 +23,7 @@ class DateRange(BaseModel):
             raise ValueError("Start date must be before or equal to end date.")
         return cls(start_date=start_date, end_date=end_date)
 
-# Schema for user statistics    
+# Schema for user statistics ----------------------------------------------------------   
 class UserStatsSchema(BaseModel):
     endpoint: str
     count: int
