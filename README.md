@@ -1,6 +1,6 @@
-# Telecom API
+# Telecom API (demonstrating basic functionality for learning purposes)
 
-This project provides a FastAPI-based API for routing and number management, with CI/CD configured for GitLab and Docker-based deployment.
+This project provides a basic FastAPI-based API for routing and number management, with GitLab CI/CD integration and Docker-based deployment.
 
 ## Features
 
@@ -8,6 +8,8 @@ This project provides a FastAPI-based API for routing and number management, wit
 - PostgreSQL database support
 - JWT-based authentication
 - Prometheus metrics
+- Grafana monitoring
+- Usage statistics
 - Docker Compose for local development
 - GitLab CI/CD for automated build, test, and deploy
 
