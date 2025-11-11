@@ -7,7 +7,7 @@ from src.schemas.auth.users import UserEndpointSchema, UserInfoSchema
 from authx.schema import TokenPayload
 from src.utils.logger import getIPAddress
 from src.databases.database_session import get_async_session
-import  src.databases.redis_cache
+import src.databases.redis_cache
 
 import logging
 
@@ -42,19 +42,19 @@ def require_endpoint_access():
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access to this endpoint is forbidden"
             )
-
-        # Increment the endpoint call count in Redis
+        user.ip_address = ip_address 
+        amount = user.rate * user.ratio
+        
         redis_key = f"epcalls:{uid}"
+        redis_amount_key = f"epamounts:{uid}"
+        amt = float(amount or 0)
+        # Increment the endpoint call count in Redis
         await src.databases.redis_cache.redis_client.hincrby(redis_key, user.endpointid, 1)
+        # Increment the amount in Redis
+        await src.databases.redis_cache.redis_client.hincrbyfloat(redis_amount_key, user.endpointid, amt)
         
-        return UserEndpointSchema(
-            uid=uid,
-            username=user.username,
-            endpointid=user.endpointid,
-            endpoint=endpoint,
-            ip_address=ip_address
-        )
-        
+        return user
+    
     return inner_require_endpoint_access 
 
 #  Function to require user info access -------------------------------------------------------------------------

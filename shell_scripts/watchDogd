@@ -7,6 +7,7 @@ use POSIX;
 
 my $i=0;
 my $maxEDRInserters=3;
+my $maxuilogInserters=1;
 my $workDir="/builds/vkhrenov-group/routeAPI/shell_scripts";
 my $logDir="/export/logs/routeapi";
 
@@ -16,7 +17,7 @@ my $filePath;
 my $mtime;
 my $current_time;
 my $newFile;
-#------------------------------------------------------------------------
+
 foreach $_ (`ps xa | grep watchDogd | grep perl | grep -v grep`) {
   $i++;
 }
@@ -25,7 +26,7 @@ if ($i>1) {
   print "Already running.....\n";
   exit
 }
-#------------------------------------------------------------------------
+
 my $pid = fork;
 exit if $pid;
 die "Couldn't fork: $!" unless defined ($pid);
@@ -37,7 +38,7 @@ my $time_to_die=0;
 sub signal_handler {
    $time_to_die = 1;
 }
-#------------------------------------------------------------------------
+
 until ($time_to_die) {
   # Check if edrInsertd is running
   $i=0;	
@@ -46,6 +47,14 @@ until ($time_to_die) {
   }
   if ($i<$maxEDRInserters) {
      $dim=system("$workDir/edrInsertd");
+  }
+  $i=0;
+  # Check if uilogInsertd is running
+  foreach $_ (`ps xaw | grep uilogInsertd | grep perl | grep -v grep`) {
+    $i++;
+  }
+  if ($i<=$maxuilogInserters) {
+     $dim=system("$workDir/uilogInsertd");
   }
   
   # check if logDir has stuck files
@@ -57,7 +66,7 @@ until ($time_to_die) {
       $current_time = time;
       if ($current_time - $mtime > 3600) { # if file is older than 1 hour
          $newFile = $file;
-         $newFile =~ s/\.//;
+         $newFile =~ s/^\.//;
          rename $filePath, "$logDir/$newFile"; 
       }  
     }

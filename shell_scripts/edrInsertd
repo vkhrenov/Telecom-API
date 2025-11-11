@@ -14,7 +14,7 @@ my $logFile="/export/logs/edrInsertd.log";
 my $maxSes=3;
 
 my $date;
-my $pid = fork;
+my $pid = fork();
 my $ppid;
 my $file;
 my $query;
@@ -30,7 +30,7 @@ my $badFile;
 my $insertQ;
 my $updateQ;
 my $ddrTable;
-my ($eventDateTime,$ip,$uid,$ep,$retValue,$dn,$tn,$eventid,$eventDate);
+my ($eventDateTime,$ip,$uid,$ep,$retValue,$dn,$tn,$eventid,$prid,$ratio,$rate,$charge,$eventDate);
 my $callid;
 my $count=0;
 
@@ -45,8 +45,10 @@ my $edrdb="dbi:Pg:dbname=EndpointLogs;host=localhost;port=5433";
 my $insert;
 my @sarr;
 my $summ;
+
+my $password="";
 #------------------------------------------------------------------------
-my $edrconn = DBI->connect($edrdb,"qlrn","") or
+my $edrconn = DBI->connect($edrdb,"qlrn",$password) or
                 die "Cannot connect to $edrdb: $!" ;
 #------------------------------------------------------------------------
 sub signal_handler {
@@ -68,7 +70,8 @@ until ($time_to_die) {
    foreach $file (`ls $edrDir`) {
       chomp($file);
       next if $file=~/^\./;
-      next unless $file=~/.log/;
+      next unless $file=~/^billing/;
+      next unless $file=~/\.log$/;
 
       $query = "SELECT * FROM endpoint_logs_proc ".
                "WHERE logfile=\'$file\'";
@@ -99,25 +102,31 @@ until ($time_to_die) {
                $Str=<EDR>;
                while ($Str) {
                   chomp($Str);
-                  ($eventDateTime,$ip,$uid,$ep,$retValue,$dn,$tn,$eventid)=split(/\t/,$Str);
-                   $eventDateTime=~s/INFO BILL//;
-                   $eventDateTime=(split(/\,/,$eventDateTime))[0];
-                   $eventDate=(split(/ /,$eventDateTime))[0];
-                   # Escape single quotes in $retvalue to prevent SQL errors
-		   $retValue=~s/^return=\[//;
-		   $retValue=~s/\]$//;
-                   $retValue =~ s/'/''/g;
-		   $ip=~s/^IP=//;
-		   $uid=~s/^ID=//;
-	           $ep=~s/^EP=//;
+                  ($eventDateTime,$ip,$uid,$ep,$prid,$ratio,$rate,$retValue,$dn,$tn,$eventid)=split(/\t/,$Str);
+                  $eventDateTime=~s/INFO BILL//;
+                  $eventDateTime=(split(/\,/,$eventDateTime))[0];
+                  $eventDate=(split(/ /,$eventDateTime))[0];
+                  # Escape single quotes in $retvalue to prevent SQL errors
+		            $retValue=~s/^return=\[//;
+		            $retValue=~s/\]$//;
+                  $retValue =~ s/'/''/g;
+		            $ip=~s/^IP=//;
+		            $uid=~s/^ID=//;
+	               $ep=~s/^EP=//;
+                  $prid=~s/^PID=//;
+                  $ratio=~s/^RATIO=//;
+                  $rate=~s/^RATE=//;
 
-                   $insertQ = "INSERT into endpoint_logs (event_timestamp, eventid, uid, ip_address, endpoint, ret_value, dn, tn, event_date) VALUES ".
-                              "(\'$eventDateTime\',\'$eventid\',\'$uid\',\'$ip\',\'$ep\',\'$retValue\',\'$dn\',\'$tn\',\'$eventDate\')";
-                   $row=$edrconn->do($insertQ);
-                   unless (($row) && ($row ne '0E0')) {
+                  $charge=$ratio*$rate;
+
+                  $insertQ = "INSERT into endpoint_logs (event_timestamp, eventid, uid, ip_address, endpoint, ret_value, dn, tn, event_date, productid, ratio, rate, charge) VALUES ".
+                              "(\'$eventDateTime\',\'$eventid\',\'$uid\',\'$ip\',\'$ep\',\'$retValue\',\'$dn\',\'$tn\',\'$eventDate\',$prid,$ratio,$rate,$charge)";
+                  $row=$edrconn->do($insertQ);
+                  unless (($row) && ($row ne '0E0')) {
                       $updateQ="UPDATE endpoint_logs SET ".
-                               "event_timestamp=\'$eventDateTime\', eventid=\'$eventid\', uid=\'$uid\', ip_address=\'$ip\',".
-                               "endpoint=\'$ep\', ret_value=\'$retValue\', event_date=\'$eventDate\', dn=\'$dn\', tn=\'$tn\' ".
+                               "event_timestamp=\'$eventDateTime\', uid=\'$uid\', ip_address=\'$ip\',".
+                               "endpoint=\'$ep\', ret_value=\'$retValue\', event_date=\'$eventDate\', dn=\'$dn\', tn=\'$tn\',".
+                               "productid=$prid, ratio=$ratio, rate=$rate, charge=$charge ".
                                "WHERE eventid=\'$eventid\'";
                       $row=$edrconn->do($updateQ);
                       unless (($row) && ($row ne '0E0'))  {
@@ -125,9 +134,9 @@ until ($time_to_die) {
                                 "failure:".$edrconn->errstr()." [$insertQ][$updateQ]");
                          $badFile=1;
                       } # unless row
-                   } # unless row
-                   $Str=<EDR>;
-                   $count++;
+                  } # unless row
+                  $Str=<EDR>;
+                  $count++;
                } # while Str
             } # if stt
             close(EDR);

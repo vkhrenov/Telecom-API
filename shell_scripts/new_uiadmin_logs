@@ -1,6 +1,6 @@
 #!/bin/perl
 #
-# This script creates a partitioned table for endpoint logs in PostgreSQL
+# This script creates a partitioned table for uiadmin logs in PostgreSQL
 #
 use strict;
 use DBI;
@@ -10,7 +10,7 @@ my $workDir='/builds/vkhrenov-group/routeAPI';
 my $fromdate=$ARGV[0];
 my $todate=$ARGV[1];
 my $date;
-my $edrdb="dbi:Pg:dbname=EndpointLogs;host=localhost;port=5433";
+my $uidb="dbi:Pg:dbname=EndpointLogs;host=localhost;port=5433";
 my $password=""; 
 
 $fromdate=strftime('%Y-%m-%d', localtime(time + 86400)) unless ($fromdate);
@@ -23,9 +23,9 @@ chomp($todate);
 
 print "[$fromdate][$todate][$date]\n";
 
-my $partition_name = "endpoint_logs_$date";
+my $partition_name = "uiadmin_logs_$date";
 my $create_sql = qq{
-   CREATE TABLE public.$partition_name PARTITION OF public.endpoint_logs
+   CREATE TABLE public.$partition_name PARTITION OF public.uiadmin_logs
        FOR VALUES FROM ('$fromdate') TO ('$todate')
    TABLESPACE pg_default;
 
@@ -35,7 +35,7 @@ my $create_sql = qq{
 
 #------------------------------------------------------------------------
 my $dbh = DBI->connect(
-    $edrdb,
+    $uidb,
     'qlrn', $password,
     { RaiseError => 1, AutoCommit => 1 }
 ) or die $DBI::errstr;

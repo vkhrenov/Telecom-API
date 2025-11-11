@@ -1,11 +1,8 @@
-import logging
-import requests
-import os
 
+import requests
 from fastapi import APIRouter, Depends, Query, Response
 from src.utils.logger import billing_logger
 from src.api import deps
-from datetime import datetime
 
 from typing import Annotated
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +19,7 @@ TN_PREFIXES= ('1', '+1')
 
 router = APIRouter()
 
-# Endpoint to get call jurisdiction information ------------------------------------------------
+# Endpoint to get call jurisdiction information ---------------------------------------------------
 @router.get("/jurisdiction/", summary="Get call jurisdiction information")
 async def get_jurisdiction(
     params: Annotated[PhoneCodes_TypeParamsSchema, Query()],
@@ -30,7 +27,7 @@ async def get_jurisdiction(
     userinfo: UserEndpointSchema = Depends(deps.require_endpoint_access())
 ):
     jurisdiction = await getJurisdiction(params.dialing_code, params.dial_code, session)
-    billing_logger.log_billing(userinfo, jurisdiction, params.dialing_code, params.dial_code)
+    billing_logger.log_event(userinfo, retvar=jurisdiction, dn=params.dialing_code, tn=params.dial_code)
     
     return return_by_type(params.type, "jurisdiction", jurisdiction)
     
@@ -51,7 +48,7 @@ async def get_lrn_jurisdiction(
     lrnjur = await procLRNjur(params, session)
     jurisdiction = await getJurisdiction(params.cn, params.tn, session)
     lrnjur.jurisdiction = jurisdiction
-    billing_logger.log_billing(userinfo, lrnjur, params.cn, params.tn)
+    billing_logger.log_event(userinfo, retvar=lrnjur, dn=params.cn, tn=params.tn)
 
     if params.type == 'raw':
         return f"{lrnjur.lrn}|{lrnjur.ocn}|{lrnjur.lata}|{lrnjur.jurisdiction}|{lrnjur.state}|{lrnjur.rc}|{lrnjur.lec}|{lrnjur.lecType}"
@@ -82,10 +79,10 @@ async def get_lrn(params: Annotated[PhoneNumber_TypeParamsSchema, Query()],
 
     if lrn_record is not None:
         lrn_record.lrn = setPrefix(lrn_record.lrn, prefix)
-        billing_logger.log_billing(userinfo, lrn_record.lrn, "", params.tn)
+        billing_logger.log_event(userinfo, retvar=lrn_record.lrn, tn=params.tn)
         return return_by_type(params.type, "LRN", lrn_record.lrn)
      
-    billing_logger.log_billing(userinfo, "", "", params.tn)
+    billing_logger.log_event(userinfo,  tn=params.tn)
     return return_by_type(params.type, "LRN", "")
 
 # Endpoint to get Full Data with CoSpec by TN ------------------------------------------------------
@@ -109,7 +106,7 @@ async def get_full_dataCoSpec(
         else:
             fullDataCoSpec.co_spec_name_or_ocn_name = fullDataCoSpec.ocn_name
 
-    billing_logger.log_billing(userinfo, fullDataCoSpec, "", params.tn)
+    billing_logger.log_event(userinfo, retvar=fullDataCoSpec, tn=params.tn)
 
     if params.type == 'raw':
         return f"{fullDataCoSpec.tn}|{fullDataCoSpec.lrn}|{fullDataCoSpec.spid}|{fullDataCoSpec.ocn}|{fullDataCoSpec.ocn_name}|{fullDataCoSpec.category}|{fullDataCoSpec.co_spec_name}|{fullDataCoSpec.spid_name}|{fullDataCoSpec.co_spec_name_or_ocn_name}"
@@ -141,7 +138,7 @@ async def get_full_data(
     fields = {k: v for k, v in fullDataCoSpec.model_dump().items() if k in FullDataSchema.model_fields}
     fullData = FullDataSchema(**fields)
 
-    billing_logger.log_billing(userinfo, fullData, "", params.tn)
+    billing_logger.log_event(userinfo, retvar=fullData,  tn=params.tn)
 
     if params.type == 'raw':
         return f"{fullData.tn}|{fullData.lrn}|{fullData.spid}|{fullData.ocn}|{fullData.ocn_name}|{fullData.category}|{fullData.spid_name}"
@@ -178,7 +175,7 @@ async def get_nnmp(
         category = fullDataCoSpec.category
     )
 
-    billing_logger.log_billing(userinfo, nnmpData, "", params.tn)
+    billing_logger.log_event(userinfo, retvar=nnmpData, tn=params.tn)
 
     if params.type == 'raw':
         return f"{nnmpData.nnmp}|{nnmpData.ocn}|{nnmpData.ocn_name}|{nnmpData.category}"
@@ -205,7 +202,7 @@ async def get_ocn(
     """
     fullDataCoSpec = await procFullDataCoSpec(params, session)
 
-    billing_logger.log_billing(userinfo, fullDataCoSpec.ocn, "", params.tn)
+    billing_logger.log_event(userinfo, retvar=fullDataCoSpec.ocn, tn=params.tn)
 
     if params.type == 'raw':
         return fullDataCoSpec.ocn
@@ -231,7 +228,7 @@ async def get_ocn_name(
     """
     fullDataCoSpec = await procFullDataCoSpec(params, session)
 
-    billing_logger.log_billing(userinfo, fullDataCoSpec.ocn_name, "", params.tn)
+    billing_logger.log_event(userinfo, retvar=fullDataCoSpec.ocn_name,  tn=params.tn)
 
     if params.type == 'raw':
         return fullDataCoSpec.ocn_name
@@ -259,7 +256,7 @@ async def get_spid(
 
     spid = fullDataCoSpec.spid
 
-    billing_logger.log_billing(userinfo, spid, "", params.tn)
+    billing_logger.log_event(userinfo, retvar=spid, tn=params.tn)
 
     if params.type == 'raw':
         return spid
@@ -285,7 +282,7 @@ async def get_category(
     """
     fullDataCoSpec = await procFullDataCoSpec(params, session)
 
-    billing_logger.log_billing(userinfo, fullDataCoSpec.category, "", params.tn)
+    billing_logger.log_event(userinfo, retvar=fullDataCoSpec.category,  tn=params.tn)
 
     if params.type == 'raw':
         return fullDataCoSpec.category
@@ -322,7 +319,7 @@ async def get_cnam(
         await set_cache(cache_key, cnam, expire=604800)  # Cache for 7 days
         lookup_type = "vendor"
 
-    billing_logger.log_billing(userinfo, f"{cnam}|{lookup_type}", "", params.tn)
+    billing_logger.log_event(userinfo, retvar=f"{cnam}|{lookup_type}",  tn=params.tn)
 
     return return_by_type(params.type, "CNAM", cnam)
 

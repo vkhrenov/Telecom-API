@@ -1,0 +1,169 @@
+#!/usr/bin/perl
+#
+# This script is for inserting UI logs into the database 
+#
+use strict;
+use DBI;
+use POSIX;
+
+my $uiDir="/export/logs/routeapi";
+my $badDir="/export/logs.bad";
+my $arcDir="/export/logs.arc";
+my $logFile="/export/logs/uilogInsertd.log";
+
+my $maxSes=3;
+
+my $date;
+my $pid = fork();
+my $ppid;
+my $file;
+my $query;
+my $sth;
+my $rcerr;
+my $rcStrErr;
+my @row;
+my $Str;
+my $utime;
+my $stt;
+my $row;
+my $badFile;
+my $insertQ;
+my $updateQ;
+my $ddrTable;
+my $eventDate;
+my ($eventDateTime,$ip,$uid,$uioption,$uidata,$eventid);
+my $callid;
+my $count=0;
+
+exit if $pid;
+die "Couldn't fork: $!" unless defined ($pid);
+POSIX::setsid() or
+    die "Can't start a new session: $!";
+
+my $time_to_die=0;
+my $i=0;
+my $uidb="dbi:Pg:dbname=EndpointLogs;host=localhost;port=5433";
+my $insert;
+my @sarr;
+my $summ;
+
+my $password="";
+#------------------------------------------------------------------------
+my $uiconn = DBI->connect($uidb,"qlrn",$password) or
+                die "Cannot connect to $uidb: $!" ;
+#------------------------------------------------------------------------
+sub signal_handler {
+   $time_to_die = 1;
+   $uiconn->disconnect;
+}
+#------------------------------------------------------------------------
+until ($time_to_die) {
+   $date=`date "+%m/%d/%Y %H:%M:%S"`;
+   chomp($date);
+   $ppid=$$;
+
+   $i=0;
+   foreach $_ (`ps xaw | grep uilogInsertd | grep perl | grep -v grep`) {
+      $i++;
+   }
+   exit if $i>$maxSes;
+
+   foreach $file (`ls $uiDir`) {
+      chomp($file);
+      next if $file=~/^\./;
+      next unless $file=~/^ui/;
+      next unless $file=~/\.log$/;
+
+      $query = "SELECT * FROM uiadmin_logs_proc ".
+               "WHERE logfile=\'$file\'";
+
+      $sth = $uiconn->prepare($query) or $rcerr=$uiconn->errstr();
+      $sth->execute or $rcStrErr=$sth->errstr();
+      chomp($rcStrErr);
+      $rcStrErr=$rcerr if $rcStrErr eq '' and $rcerr ne '';
+      if ($rcStrErr) {
+         logErr("$date UILOGINPROC Error: $rcStrErr");
+         exit;
+      } 
+      @row = $sth->fetchrow_array;
+
+      $insert=0;
+      unless (@row) {
+        $utime=`date "+%s"`;
+        chomp($utime);
+        $query="INSERT INTO uiadmin_logs_proc (logfile) ".
+               "VALUES (\'$file\')";
+        $row=$uiconn->do($query);
+        if (($row) && ($row ne '0E0')) {
+            $badFile=0;
+            $insert=1;
+            $stt=open(UI,"$uiDir/$file");
+            $count=0;
+            if ($stt) {
+               $Str=<UI>;
+               while ($Str) {
+                  chomp($Str);
+                  print "$Str\n";
+                  ($eventDateTime,$ip,$uid,$uioption,$uidata,$eventid)=split(/\t/,$Str);
+                  $eventDateTime=~s/INFO UI//;
+                  $eventDateTime=(split(/\,/,$eventDateTime))[0];
+                  $eventDate=(split(/ /,$eventDateTime))[0];
+
+                  # Escape single quotes in $uidata to prevent SQL errors
+                  $uidata =~ s/'/''/g;
+		            $ip=~s/^IP=//;
+		            $uid=~s/^ID=//;
+                  $uioption=~s/^OPTION=//;
+                  $uidata=~s/^DATA=//;
+    
+                  $insertQ = "INSERT into uiadmin_logs (event_timestamp, eventid, uid, ip_address, uioption, uidata, event_date) VALUES ".
+                              "(\'$eventDateTime\',\'$eventid\',\'$uid\',\'$ip\',\'$uioption\',\'$uidata\',\'$eventDate\')";
+                  $row=$uiconn->do($insertQ);
+                  unless (($row) && ($row ne '0E0')) {
+                      $updateQ="UPDATE uiadmin_logs SET ".
+                               "event_timestamp=\'$eventDateTime\', uid=\'$uid\', ip_address=\'$ip\',".
+                               "uioption=\'$uioption\', uidata=\'$uidata\', event_date=\'$eventDate\' ".
+                               "WHERE eventid=\'$eventid\'";
+                      $row=$uiconn->do($updateQ);
+                      unless (($row) && ($row ne '0E0'))  {
+                         logErr("$date $file: Record insert ".
+                                "failure:".$uiconn->errstr()." [$insertQ][$updateQ]");
+                         $badFile=1;
+                      } # unless row
+                  } # unless row
+                  $Str=<UI>;
+                  $count++;
+               } # while Str
+            } # if stt
+            close(UI);
+
+            if ($insert) {
+               if ($badFile) {
+                   `mv $uiDir/$file $badDir 2>>$logFile`;
+                    logErr("$date BAD FILE: $file . Action: mv $uiDir/$file $badDir\n");
+               } else {
+                    system("gzip $uiDir/$file;mv $uiDir/$file.gz $arcDir");
+               } 
+
+               $query="DELETE FROM uiadmin_logs_proc ".
+                      "WHERE logfile=\'$file\'";
+                       $row=$uiconn->do($query);
+                       unless (($row) && ($row ne '0E0')) {
+                          logErr("$date UILOGINPROC Error: $query");
+                       }
+            } # if insert
+       } # row
+    } # unless
+   } # foreach
+
+   sleep 5;
+}
+
+   $uiconn->disconnect;
+
+sub logErr {
+ open (LOG,">>$logFile");
+ print LOG $_[0]."\n";
+ close(LOG);
+}
+

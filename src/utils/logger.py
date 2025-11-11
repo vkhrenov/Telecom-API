@@ -8,24 +8,27 @@ from src.schemas.auth.users   import UserEndpointSchema
 from datetime import datetime
 from sqlalchemy import text
 
-interval = int(os.environ.get("BILLING_LOGGER_INTERVAL", 300))
+bill_interval = int(os.environ.get("BILLING_LOGGER_INTERVAL", 300))
+ui_interval = int(os.environ.get("UI_ACTIVITY_LOGGER_INTERVAL", 300))
 log = logging.getLogger("app")
 
-# Billing logger class to handle periodic log rotation and logging ----------------------------------------------------
-class BillingLogger:
+# logger class to handle periodic log rotation and logging ----------------------------------------------------
+class RouteLogger:
     """
-    A class to encapsulate billing logging functionality.
+    A class to encapsulate logging functionality.
     """
     hostname: str
     log_dir = "logs"
     logger: Logger
+    type: str
     log_filename: str = ""
-    interval: int = 300  
+    interval: int  
     worker_id: int
     counter: int = 0
 
-    def __init__(self, interval: int = 300):
+    def __init__(self, interval: int = 300, type: str = "billing"):
         self.interval = interval
+        self.type = type
         self.hostname = os.environ.get("HOSTNAME","routeapi")
         os.makedirs(self.log_dir, exist_ok = True)  # Ensure logs directory exists
         self.set_new_handler()
@@ -40,11 +43,11 @@ class BillingLogger:
 
     # Set a new logging handler with a unique filename     
     def set_new_handler(self):
-        self.logger = logging.getLogger("billing") 
+        self.logger = logging.getLogger(self.type) 
         self.worker_id = os.getpid()
         date_str = datetime.now().strftime("%Y%m%d%H%M%S")
         old_log_filename = self.log_filename 
-        self.log_filename = f".billing-{date_str}-{self.hostname}-{self.worker_id}.log"
+        self.log_filename = f".{self.type}-{date_str}-{self.hostname}-{self.worker_id}.log"
         handler = logging.FileHandler(f"{self.log_dir}/{self.log_filename}")
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
         handler.setFormatter(formatter)
@@ -64,19 +67,35 @@ class BillingLogger:
                 else:          
                     os.rename(old_path, new_path)
 
-    # Log billing information for a user endpoint call
-    def log_billing(self, userinfo: UserEndpointSchema, retvar: str, dn: str, tn: str):
+    # Log event information for a user endpoint call
+    def log_event(self, userinfo: UserEndpointSchema, **kwargs):
         """
         Logs billing information for a user endpoint call.
-        """        
+        Parameters:
+            userinfo (UserEndpointSchema): The user endpoint information.
+            kwargs: Additional keyword arguments for logging.
+"""        
         self.counter += 1
-        log = f"BILL\tIP={userinfo.ip_address}\tID={userinfo.username}\tEP={userinfo.endpoint}\treturn=[{retvar}]\t{dn}\t{tn}"
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-        eventid = hashlib.sha256((log + str(self.counter) + timestamp).encode()).hexdigest()
-        self.logger.info(f"{log}\t{eventid}")
+
+        if self.type == "billing":    
+            retvar = kwargs.get("retvar", "")
+            dn = kwargs.get("dn", "")
+            tn = kwargs.get("tn", "")
+            log = f"BILL\tIP={userinfo.ip_address}\tID={userinfo.username}\tEP={userinfo.endpoint}\tPID={userinfo.productid}\tRATIO={userinfo.ratio}\tRATE={userinfo.rate}\treturn=[{retvar}]\t{dn}\t{tn}"
+            eventid = hashlib.sha256((log + str(self.counter) + timestamp).encode()).hexdigest()
+            self.logger.info(f"{log}\t{eventid}")
+
+        if self.type == "ui":
+            data = kwargs.get("data", {})
+            option = kwargs.get("option", "")
+            log = f"UI\tIP={userinfo.ip_address}\tID={userinfo.username}\tOPTION={option}\tDATA={data}"
+            eventid = hashlib.sha256((log + str(self.counter) + timestamp).encode()).hexdigest()
+            self.logger.info(f"{log}\t{eventid}")
 
 #---------------------------------------------------------
-billing_logger = BillingLogger(interval)
+billing_logger = RouteLogger(bill_interval,"billing")
+ui_logger = RouteLogger(ui_interval,"ui")
 #---------------------------------------------------------
 
 # Utility function for logging access events ----------------------------------------------------

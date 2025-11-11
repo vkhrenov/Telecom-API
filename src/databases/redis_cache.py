@@ -37,18 +37,24 @@ async def sync_redis_to_postgres(redis_client):
                     data = await redis_client.hgetall(key)
                     if not data:
                         continue
-
                     async with _NUMBERING_ASYNC_SESSIONMAKER() as session:
                         for endpointid, count in data.items():
                             count = int(count)
                             if count > 0:
                                 endpointid = int(endpointid)
+                                amount_key = f"epamounts:{uid}"
+                                amount_str = await redis_client.hget(amount_key, endpointid)
+                                amount = float(amount_str) if amount_str else 0.0
+
+                                # Subtract the counts and amounts from Redis 
                                 await redis_client.hincrby(key_str, endpointid, -count)
+                                await redis_client.hincrbyfloat(amount_key, endpointid, -amount)
+
                                 await session.execute(text(f"SET TIMEZONE = '{pg_timezone}'"))
                                 await session.execute(text("""
-                                    INSERT INTO endpoint_stats (userid, endpointid, count)
-                                    VALUES (:userid, :endpointid, :count)
-                                """), {"userid": uid, "endpointid": endpointid, "count": count})
+                                    INSERT INTO endpoint_stats (userid, endpointid, count, amount)
+                                    VALUES (:userid, :endpointid, :count, :amount)
+                                """), {"userid": uid, "endpointid": endpointid, "count": count, "amount": amount})
                            
                                 await session.commit()
    
@@ -62,4 +68,3 @@ async def get_cache(key: str) -> Optional[str]:
 # Async function to set a value in Redis cache with expiration -------------------------------------
 async def set_cache(key: str, value: str, expire: int = 600):
     await redis_client.set(key, value, ex=expire)
-          

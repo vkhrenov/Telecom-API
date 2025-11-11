@@ -8,7 +8,9 @@ import logging
 import os
 import shutil
 
+
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from src.api import main_router, built_v1 as built
 
 from src.utils.observability import PrometheusMiddleware, metrics
@@ -69,6 +71,17 @@ app = FastAPI(
     version=built,
     lifespan=lifespan
 )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://apollo:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["Content-Range"],
+)
 
 app.include_router(main_router)
 
@@ -96,6 +109,5 @@ if __name__ == "__main__":
         "proxy_headers": True
     }
     StandaloneApplication(app, options).run()
-
 
 

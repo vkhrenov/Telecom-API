@@ -16,6 +16,9 @@ class UserEndpointSchema(BaseModel):
     endpointid: int
     endpoint : str
     ip_address : str   
+    productid: int
+    ratio: float
+    rate: float
 
 # Schema for user information --------------------------------------------------------
 class UserInfoSchema(BaseModel):

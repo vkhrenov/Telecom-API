@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 SU_HEADER = "X-User-ID"
 router = APIRouter()
 
-# Endpoint to get usage statistics for a given date range --------------------------------------------------------------
+# Endpoint to get usage statistics for a given date range ---------------------------------------------------------------------------------------
 @router.get("/endpointstats", summary="Get usage statistics") 
 async def get_endpointstats(dates: Annotated[DateRange, Query(description="Date range for statistics")],
                     request: Request,
