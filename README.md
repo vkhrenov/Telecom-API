@@ -27,7 +27,7 @@ This project provides a basic FastAPI-based API for routing and number managemen
 1. **Clone the repository:**
    ```sh
    git clone <your-repo-url>
-   cd RouteAPI
+   cd Telecom-API
    ```
 
 2. **Configure environment variables:**
